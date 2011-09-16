@@ -100,12 +100,38 @@
 		if (msg && channel) {
 			channel.sendMsg(msg);
 		};
+		
+		this.setMsg('');
 	};	
 	
 	Chat.prototype.sendClick = function () {
 		this.onMsg();
 	};
 	
+	Chat.prototype.send = function (ch, msg, fn, timeout) {
+		var req = new Chat.Request({
+						  url: '/plugins/chatlight/include/ajax/lschatSendMsg.php'
+						, method: 'POST'
+						, data: { msg: msg
+								, security_ls_key: Chat.SEC_KEY
+								, channel: ch.getName()
+						}
+						, onSuccess: fn.bind(ch)
+						, onFailure: function (res) {
+							fn('Some error');
+						}.bind(ch)
+					});
+		if (!timeout) {
+			req.send();
+		} else {
+			setTimeout(function () {
+				req.send();
+			}, timeout);
+		}
+	};
+	
+	Chat.Request = global.Request;
+	Chat.SEC_KEY = global.LIVESTREET_SECURITY_KEY;
 	/*
 	 * Chat channel class
 	 */
@@ -114,8 +140,10 @@
 		this._chat = chat;
 		this._isActive = false;
 		this._el = $('block_lschat_tab_' + this._name);
-		this._text = 'Загружаем...';
+		this._msgBuffer = new Buffer();
+		this._sendBuffer = new Buffer(10);
 		this._msg = '';
+		this._isSending = false;
 		
 	};
 	
@@ -138,8 +166,77 @@
 	};
 	
 	Channel.prototype.sendMsg = function (msg) {
-		console.log(this._name + ' ' + msg);
+		this._sendBuffer.push(msg);
+		this.send();
 	};
 	
+	Channel.prototype.send = function (timeout) {
+		var msg = this._sendBuffer.first();
+
+		if (!this._isSending) {
+			if (msg) {
+				this._isSending = true;
+				this._chat.send(this, msg, function (err) {
+					this._isSending = false;
+					this._sendHandler(err);
+				}, timeout);
+			} else {
+				this._isSending = false;
+			}
+		}
+	};
+	
+	Channel.prototype._sendHandler = function (err) {
+		if (err) {
+			this.send(this._chat._pollFreq * 4);
+		} else {
+			this._sendBuffer.shift();
+			if (this._sendBuffer.first()) {
+				this.send(this._chat._pollFreq);
+			};
+		}
+	};
+	
+	Channel.prototype.getName = function () {
+		return this._name;
+	};
+	
+	/*
+	 * Buffer
+	 */
+	function Buffer (size) {
+		this._maxLength = size || 1000;
+		this._buff = [];
+	};
+	
+	Buffer.prototype.getMaxLength = function () {
+		return this._maxLength;
+	};
+	
+	Buffer.prototype.setMaxLength = function (max) {
+		this._maxLength = max;
+	};
+	
+	Buffer.prototype.first = function () {
+		return this._buff[0];
+	};
+	
+	Buffer.prototype.shift = function () {
+		return this._buff.shift();
+	};
+	
+	Buffer.prototype.push = function (item) {
+		if (this._buff.length == this._maxLength) {
+			this._buff.shift();
+		}
+		
+		this._buff.push(item);
+	};
+	
+	Buffer.prototype.length = function () {
+		return this._buff.length;
+	};
+	
+	//export to global object
 	global.Chat = Chat;	
 }(this));
