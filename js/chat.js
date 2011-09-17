@@ -202,7 +202,9 @@
 	};
 	
 	Channel.prototype.print = function (str) {
-		this._chat.print(str);
+		if (this.isActive()) {
+			this._chat.print(str);
+		}
 	};
 	
 	Channel.prototype.sendMsg = function (msg) {
@@ -251,9 +253,27 @@
 		if (err) {
 			this.poll(this._chat._opt.retryFreq);
 		} else {
-			this.print(data);
+			this._onPollData(data);
 			this.poll(this._chat._opt.pollFreq);
 		}
+	};
+	
+	Channel.prototype._onPollData = function (data) {
+		var array = data.split(/\n/)
+			, last = this._msgBuffer.last()
+			;
+			
+		for (var i = 0, l = array.length; l > i; i++) {
+			if (last == array[i]) {
+				array.splice(0, i + 1);
+				break;
+			}
+		};
+		
+		if (array.length > 0) {
+			this._msgBuffer.push(array);
+			this.print();
+		};
 	};
 	
 	Channel.prototype.getName = function () {
@@ -278,6 +298,13 @@
 	
 	Buffer.prototype.first = function () {
 		return this._buff[0];
+	};
+	
+	Buffer.prototype.last = function () {
+		var l = this.length()
+			, i = (l > 0)? l - 1: 0;
+
+		return this._buff[i];
 	};
 	
 	Buffer.prototype.shift = function () {
@@ -305,7 +332,19 @@
 		return 1;
 	};
 	
-	Buffer.prototype._pushArray = function (arr) {
+	Buffer.prototype._pushArray = function (items) {
+		var itemsL = items.length
+			, len = this.length()
+			, dl = (itemsL + len) - this._maxLength
+			;
+		
+		if (dl > 0) {
+			this._buff.splice(0, dl);
+		}
+		
+		this._buff = this._buff.concat(items);
+		
+		return itemsL;
 	};
 	
 	Buffer.prototype.length = function () {
