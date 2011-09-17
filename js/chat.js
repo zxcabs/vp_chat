@@ -325,6 +325,12 @@
 	};
 	
 	Buffer.prototype.setMaxLength = function (max) {
+		var l = this.length();
+		
+		if (max < this._maxLength && max > l) {
+			this._buff.splice(0, max - l);
+		}
+		
 		this._maxLength = max;
 	};
 	
