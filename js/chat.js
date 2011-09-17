@@ -36,6 +36,8 @@
 		
 		this._msgEl = $(this._opt.msgElId);
 		this._textAreaEl = $(this._opt.textAreaEl);
+		
+		this._textAreaEl.addEvent('keydown', this._textAreaKeydown.bind(this));
 		this._channels = new Queue();
 				
 		for (var i = 0, l = this._opt.channelList.length; l > i; i++) {
@@ -176,6 +178,13 @@
 	
 	Chat.prototype.sendClick = function () {
 		this.onMsg();
+	};
+	
+	Chat.prototype._textAreaKeydown = function (e) {
+		if ((e.control ||e.meta) && 'enter' == e.key) {
+			e.preventDefault();
+			this.onMsg();
+        }
 	};
 	
 	Chat.prototype.send = function (ch, msg, fn, timeout) {
