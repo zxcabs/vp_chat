@@ -15,7 +15,7 @@
 		}
 		
 		return Object.create(_target, _prop);
-	}
+	};
 	
 	/*
 	 * Chat class
@@ -129,9 +129,9 @@
 								, channel: ch.getName()
 						}
 						, onSuccess: fn.bind(ch)
-						, onFailure: function (res) {
-							fn('Some error');
-						}.bind(ch)
+						, onFailure: function () {
+							fn.call(ch, 'Some error');
+						}
 					});
 		if (!timeout) {
 			req.send();
@@ -140,6 +140,28 @@
 				req.send();
 			}, timeout);
 		}
+	};
+	
+	Chat.prototype.poll = function (ch, fn, timeout) {
+		var req = new Chat.Request({
+						  url: '/chatmsg/' + ch.getName() + '.html'
+						, method: 'GET'
+						, noCache: true
+						, onSuccess: function (data) {
+							fn.call(ch, null, data);
+						}
+						, onFailure: function () {
+							fn.call(ch, 'Some error');
+						}
+					});
+
+		if (!timeout) {
+			req.send();
+		} else {
+			setTimeout(function () {
+				req.send();
+			}, timeout);
+		}		
 	};
 	
 	Chat.Request = global.Request;
@@ -157,7 +179,7 @@
 		this._sendBuffer = new Buffer(10);
 		this._msg = '';
 		this._isSending = false;
-		
+		this._isPolling = false;		
 	};
 	
 	Channel.prototype.isActive = function () {
@@ -169,6 +191,7 @@
 		this._chat.print(this._text);
 		this._chat.setMsg(this._msg);
 		this._isActive = true;
+		this.poll();
 	};
 	
 	Channel.prototype.deactivate = function () {
@@ -176,6 +199,10 @@
 		this._msg = this._chat.getMsg();
 		this._chat.clear();
 		this._isActive = false;
+	};
+	
+	Channel.prototype.print = function (msg) {
+		this._chat.print(msg);
 	};
 	
 	Channel.prototype.sendMsg = function (msg) {
@@ -201,12 +228,31 @@
 	
 	Channel.prototype._sendHandler = function (err) {
 		if (err) {
-			this.send(this._chat._pollFreq * 4);
+			this.send(this._chat._pollFreq * 10);
 		} else {
 			this._sendBuffer.shift();
 			if (this._sendBuffer.first()) {
 				this.send(this._chat._pollFreq);
 			};
+		}
+	};
+	
+	Channel.prototype.poll = function (timeout) {
+		if (!this._isPolling && this.isActive()) {
+			this._isPolling = true;
+			this._chat.poll(this, function (err, data) {
+				this._isPolling = false;
+				this._pollHandler(err, data);
+			}, timeout);
+		}
+	};
+	
+	Channel.prototype._pollHandler = function (err, data) {
+		if (err) {
+			this.poll(this._chat._opt.pollFeq * 10);
+		} else {
+			this.print(data);
+			this.poll(this._chat._opt.pollFreq);
 		}
 	};
 	
