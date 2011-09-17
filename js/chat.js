@@ -316,6 +316,7 @@
 			} else {
 				this._sendBuffer.shift(); //remove bad msg
 				this._isSending = false;
+				this._sendBuffer.shift(); //remove bad msg
 			}
 		}
 	};
