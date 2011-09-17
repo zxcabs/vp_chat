@@ -307,7 +307,7 @@
 		var msg = this._sendBuffer.first();
 
 		if (!this._isSending) {
-			if (msg && msg.match(/^\s{0,}$/)) {
+			if (msg && !msg.match(/^\s{0,}$/)) {
 				this._isSending = true;
 				this._chat.send(this, msg, function (err) {
 					this._isSending = false;
