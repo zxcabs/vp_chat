@@ -301,7 +301,7 @@
 		var msg = this._sendBuffer.first();
 
 		if (!this._isSending) {
-			if (msg) {
+			if (msg && msg != "") {
 				this._isSending = true;
 				this._chat.send(this, msg, function (err) {
 					this._isSending = false;
@@ -309,6 +309,7 @@
 				}, timeout);
 			} else {
 				this._isSending = false;
+				this._sendBuffer.shift(); //remove bad msg
 			}
 		}
 	};
