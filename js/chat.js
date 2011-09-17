@@ -52,6 +52,9 @@
 			;
 			
 		if (activeChannel) activeChannel.deactivate();
+		
+		this.clear();
+		
 		if (channel) channel.activate();
 	};
 	
@@ -85,6 +88,10 @@
 	
 	Chat.prototype.print = function (str) {
 		this._msgEl.set('html', str);
+	};
+	
+	Chat.prototype.append = function (str) {
+		this._msgEl.innerHTML += str;
 	};
 	
 	Chat.prototype.setMsg = function (msg) {
@@ -188,7 +195,7 @@
 	
 	Channel.prototype.activate = function () {
 		this._el.addClass('active');
-		this._chat.print(this._text);
+		this._append();
 		this._chat.setMsg(this._msg);
 		this._isActive = true;
 		this.poll();
@@ -197,14 +204,23 @@
 	Channel.prototype.deactivate = function () {
 		this._el.removeClass('active');
 		this._msg = this._chat.getMsg();
-		this._chat.clear();
 		this._isActive = false;
 	};
 	
-	Channel.prototype.print = function (str) {
-		if (this.isActive()) {
-			this._chat.print(str);
+	Channel.prototype.append = function (str) {
+		if (str) {
+			this._chat.append(str);
 		}
+	};
+	
+	Channel.prototype._append = function (start, stop) {
+		var str = ''
+			, start = start || 0
+			, arr = this._msgBuffer.slice(start, stop)
+			;
+		
+		
+		this.append(arr.join(''));
 	};
 	
 	Channel.prototype.sendMsg = function (msg) {
@@ -259,8 +275,9 @@
 	};
 	
 	Channel.prototype._onPollData = function (data) {
-		var array = data.split(/\n/)
+		var array = data.replace(/\r\n/g, '').match(/<div(.*)<\/div>/g)
 			, last = this._msgBuffer.last()
+			, pushed = 0
 			;
 			
 		for (var i = 0, l = array.length; l > i; i++) {
@@ -271,8 +288,11 @@
 		};
 		
 		if (array.length > 0) {
-			this._msgBuffer.push(array);
-			this.print();
+			pushed = this._msgBuffer.push(array);
+			
+			if (this.isActive()) {
+				this._append(this._msgBuffer.length() - pushed);
+			}
 		};
 	};
 	
@@ -351,6 +371,9 @@
 		return this._buff.length;
 	};
 	
+	Buffer.prototype.slice = function () {
+		return this._buff.slice.apply(this._buff, arguments);
+	};
 	
 	/*
 	 * Queue
