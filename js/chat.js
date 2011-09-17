@@ -93,11 +93,19 @@
 	};
 	
 	Chat.prototype.append = function (str) {
-		this._msgEl.innerHTML += str;
+		var el = document.createElement('div');
+		el.innerHTML = str;
+		
+		while (el.childElementCount > 0) {
+				this._msgEl.appendChild(el.childNodes[0]);
+		}
 		
 		if (this._opt.scrollEnabled) {
 			this.scroll();
 		}
+		
+		el.destroy();
+		delete el;
 	};
 	
 	Chat.prototype.scroll = function () {
