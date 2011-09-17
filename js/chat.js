@@ -3,7 +3,8 @@
  */
 (function (global) {
 	var $ = global.$;
-	
+	var Request = global.Request;
+					
 	function extend (target, obj) {
 		var   _obj = obj || {}
 			, _target = target || {}
@@ -26,7 +27,8 @@
 		this._opt = extend({
 				  defaultChannel: 'main'
 				, channelList: ['main']
-				, pollFreq: 1000
+				, pollFreq: 5000
+				, retryFreq: 30000
 				, scrollEnabled: true
 				, msgElId: 'lschat_list_msg'
 				, textAreaEl: 'lschat_input_msg'
@@ -40,6 +42,7 @@
 			this._channels.push(new Channel(this._opt.channelList[i], this));
 		}
 		
+		this.Request = Request;
 		this.activateChannel(this._opt.defaultChannel);
 	};
 	
@@ -121,11 +124,11 @@
 	};
 	
 	Chat.prototype.send = function (ch, msg, fn, timeout) {
-		var req = new Chat.Request({
+		var req = new this.Request({
 						  url: '/plugins/chatlight/include/ajax/lschatSendMsg.php'
 						, method: 'POST'
 						, data: { msg: msg
-								, security_ls_key: Chat.SEC_KEY
+								, security_ls_key: this._opt.SEC_KEY
 								, channel: ch.getName()
 						}
 						, onSuccess: fn.bind(ch)
@@ -143,7 +146,7 @@
 	};
 	
 	Chat.prototype.poll = function (ch, fn, timeout) {
-		var req = new Chat.Request({
+		var req = new this.Request({
 						  url: '/chatmsg/' + ch.getName() + '.html'
 						, method: 'GET'
 						, noCache: true
@@ -163,9 +166,6 @@
 			}, timeout);
 		}		
 	};
-	
-	Chat.Request = global.Request;
-	Chat.SEC_KEY = global.LIVESTREET_SECURITY_KEY;
 	
 	/*
 	 * Chat channel class
@@ -201,8 +201,8 @@
 		this._isActive = false;
 	};
 	
-	Channel.prototype.print = function (msg) {
-		this._chat.print(msg);
+	Channel.prototype.print = function (str) {
+		this._chat.print(str);
 	};
 	
 	Channel.prototype.sendMsg = function (msg) {
@@ -228,11 +228,11 @@
 	
 	Channel.prototype._sendHandler = function (err) {
 		if (err) {
-			this.send(this._chat._pollFreq * 10);
+			this.send(this._chat._opt.retryFreq);
 		} else {
 			this._sendBuffer.shift();
 			if (this._sendBuffer.first()) {
-				this.send(this._chat._pollFreq);
+				this.send(this._chat._opt.pollFreq);
 			};
 		}
 	};
@@ -249,7 +249,7 @@
 	
 	Channel.prototype._pollHandler = function (err, data) {
 		if (err) {
-			this.poll(this._chat._opt.pollFeq * 10);
+			this.poll(this._chat._opt.retryFreq);
 		} else {
 			this.print(data);
 			this.poll(this._chat._opt.pollFreq);
@@ -285,11 +285,27 @@
 	};
 	
 	Buffer.prototype.push = function (item) {
+		var pushedItemCount = 0;
+		
+		if ('object' == typeof item && '[object Array]' == Object.prototype.toString.call(item)) {
+			pushedItemCount = this._pushArray(item);
+		} else {
+			pushedItemCount = this._pushItem(item);
+		}
+		
+		return pushedItemCount;
+	};
+	
+	Buffer.prototype._pushItem = function (item) {
 		if (this._buff.length == this._maxLength) {
 			this._buff.shift();
 		}
 		
 		this._buff.push(item);
+		return 1;
+	};
+	
+	Buffer.prototype._pushArray = function (arr) {
 	};
 	
 	Buffer.prototype.length = function () {
