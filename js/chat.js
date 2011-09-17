@@ -203,7 +203,13 @@
 								, security_ls_key: this._opt.SEC_KEY
 								, channel: ch.getName()
 						}
-						, onSuccess: fn.bind(ch)
+						, onSuccess: function (data) {
+							if (data) {
+								this.append(data);
+							};
+							
+							fn.call(ch);
+						}.bind(this)
 						, onFailure: function () {
 							fn.call(ch, 'Some error');
 						}
@@ -301,13 +307,14 @@
 		var msg = this._sendBuffer.first();
 
 		if (!this._isSending) {
-			if (msg) {
+			if (msg && msg.match(/^\s{0,}$/)) {
 				this._isSending = true;
 				this._chat.send(this, msg, function (err) {
 					this._isSending = false;
 					this._sendHandler(err);
 				}, timeout);
 			} else {
+				this._sendBuffer.shift(); //remove bad msg
 				this._isSending = false;
 			}
 		}
