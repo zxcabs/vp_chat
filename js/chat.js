@@ -12,7 +12,7 @@
 			;
 		
 		for (var prop in _obj) {
-			_prop[prop] = {value: _obj[prop]};
+			_prop[prop] = {value: _obj[prop], writable: true};
 		}
 		
 		return Object.create(_target, _prop);
@@ -128,15 +128,51 @@
 	};
 	
 	Chat.prototype.onMsg = function () {
-		var msg = this.getMsg()
-			, channel = this.getActiveChannel();
-		
-		if (msg && channel) {
-			channel.sendMsg(msg);
-		};
+		var msg = new String(this.getMsg())
+			, channel = this.getActiveChannel()
+			, isCommand = (msg.match(/^\//))? true: false
+			;
+		if (isCommand) {
+			this.execute.apply(this, msg.split(/\s/));
+		} else {
+			if (channel) {
+				channel.sendMsg(msg);
+			}
+		}
 		
 		this.setMsg('');
 	};	
+	
+	Chat.prototype.execute = function () {
+		var command = arguments[0]
+			, params =  Array.prototype.slice.call(arguments, 1)
+			, channel = this.getActiveChannel()
+			, msg = ''
+			, now = new Date()
+			, h = now.getHours()
+			, m = now.getMinutes()
+			;
+		
+		h = (h < 10)? '0' + h: h;
+		m = (m < 10)? '0' + m: m;
+				
+		switch (command) {
+			case '/scroll': 
+				this.setScrollEnabled('off' != params[0]);				
+				msg = 'scroll enabled: ' + this._opt.scrollEnabled;
+				break;
+			default:
+				if (channel.execute.apply(channel, params) === false) {
+					msg = 'Не известная команда: ' + command + ' ' + params.join(' ');
+				}
+			};
+			
+		this.append('<div class="chat-message"><span class="cm-time">[' + h + ':' + m + ']</span> ' + msg + '</div>');
+	};
+	
+	Chat.prototype.setScrollEnabled = function (enabled) {
+		this._opt.scrollEnabled = enabled;
+	};
 	
 	Chat.prototype.sendClick = function () {
 		this.onMsg();
@@ -199,6 +235,10 @@
 		this._msg = '';
 		this._isSending = false;
 		this._isPolling = false;		
+	};
+	
+	Channel.prototype.execute = function () {
+		return false;
 	};
 	
 	Channel.prototype.isActive = function () {
