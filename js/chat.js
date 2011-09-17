@@ -34,17 +34,17 @@
 		
 		this._msgEl = $(this._opt.msgElId);
 		this._textAreaEl = $(this._opt.textAreaEl);
-		this._channels = {};
+		this._channels = new Queue();
 				
 		for (var i = 0, l = this._opt.channelList.length; l > i; i++) {
-			this._channels[this._opt.channelList[i]] = new Channel(this._opt.channelList[i], this);
+			this._channels.push(new Channel(this._opt.channelList[i], this));
 		}
 		
 		this.activateChannel(this._opt.defaultChannel);
 	};
 	
 	Chat.prototype.activateChannel = function (name) {
-		var channel = this._channels[name]
+		var channel = this.findChannelByName(name)
 			, activeChannel = this.getActiveChannel()
 			;
 			
@@ -53,19 +53,31 @@
 	};
 	
 	Chat.prototype.getActiveChannel = function () {
-		var active = null
-			, channel = null;
+		var active = null;
 		
-		for (var ch in this._channels) {
-			channel = this._channels[ch];
-			
+		function iterator(channel, i) {
 			if (channel.isActive()) {
 				active = channel;
-				break;
-			}
-		}
+				return false;
+			};
+		};
 		
+		this._channels.forEach(iterator);
 		return active;
+	};
+	
+	Chat.prototype.findChannelByName = function (name) {
+		var ch = null;
+		
+		function iterator(channel, i) {
+			if (channel.getName() == name) {
+				ch = channel;
+				return false;
+			};
+		};
+		
+		this._channels.forEach(iterator);
+		return ch;
 	};
 	
 	Chat.prototype.print = function (str) {
@@ -132,6 +144,7 @@
 	
 	Chat.Request = global.Request;
 	Chat.SEC_KEY = global.LIVESTREET_SECURITY_KEY;
+	
 	/*
 	 * Chat channel class
 	 */
@@ -235,6 +248,60 @@
 	
 	Buffer.prototype.length = function () {
 		return this._buff.length;
+	};
+	
+	
+	/*
+	 * Queue
+	 */
+	 function Queue() {
+		this._q = [];
+		this._i = 0;
+	 };
+	 
+	Queue.prototype.push = function (item) {
+		return this._q.push(item);
+	};
+	
+	Queue.prototype.remove = function (removeItem) {
+		function iterator (item, index, length) {
+			if (item == removeItem) {
+				this._q.splice(index, 1);
+				
+				if (this._i == length - 1 || this._i > index) {
+					this._i--;
+				}
+				return false;
+			};
+		};
+		this.forEach(iterator);
+	};
+	 
+	Queue.prototype.forEach = function (fn) {
+		for (var i = 0, l = this._q.length; l > i; i++) {
+			if(fn(this._q[i], i, l) === false) break;
+		};
+	};
+	
+	Queue.prototype.setIndex = function (index) {
+		var i = index;
+		
+		if (i >= this.length()) {
+			i = this.length() - 1;
+		} else if (i < 0) {
+			i = 0;
+		}
+		
+		this._i = i;
+		return this._i;
+	};
+	
+	Queue.prototype.getIndex = function () {
+		return this._i;
+	};
+	
+	Queue.prototype.length = function () {
+		return this._q.length;
 	};
 	
 	//export to global object
