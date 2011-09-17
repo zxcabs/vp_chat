@@ -92,6 +92,18 @@
 	
 	Chat.prototype.append = function (str) {
 		this._msgEl.innerHTML += str;
+		
+		if (this._opt.scrollEnabled) {
+			this.scroll();
+		}
+	};
+	
+	Chat.prototype.scroll = function () {
+		function _scroll() {
+			this._msgEl.scrollTo(0, this._msgEl.scrollHeight);
+		};
+		
+		setTimeout(_scroll.bind(this), 0);
 	};
 	
 	Chat.prototype.setMsg = function (msg) {
@@ -182,7 +194,7 @@
 		this._chat = chat;
 		this._isActive = false;
 		this._el = $('block_lschat_tab_' + this._name);
-		this._msgBuffer = new Buffer();
+		this._msgBuffer = new Buffer(250);
 		this._sendBuffer = new Buffer(10);
 		this._msg = '';
 		this._isSending = false;
